@@ -1,3 +1,6 @@
+
+var lowpass_param = 0.2;
+
 var express = require('express');
 var app = express();
 var path = require('path');
@@ -310,6 +313,9 @@ const param2_emg_spectrum = 9;
 
 var protocol_v6p = 0;
 
+var ecg_value = 0;
+var ecg_faulty_cnt = 0;
+
 parse_uecg_packet_v2 = function(pack)
 {
 	var packet_id = pack[0];
@@ -387,7 +393,7 @@ parse_uecg_packet_v2 = function(pack)
 	if(data_dist > 200) data_dist = 200;
 	unit_list[unit_index].data_id = data_id;
 
-	console.log("prev_data_id " + prev_data_id + " data_id " + data_id + " data_dist " + data_dist);
+//	console.log("prev_data_id " + prev_data_id + " data_id " + data_id + " data_dist " + data_dist);
 
 	var pack_dist = packet_id - unit_list[unit_index].last_pack_id;
 	if(unit_list[unit_index].last_pack_id > 80 && packet_id < 50)
@@ -458,21 +464,30 @@ parse_uecg_packet_v2 = function(pack)
 		data_dist = data_points;
 	}
 	ppos += 2 * (data_points - data_dist); //skip repeated data, if any
-	console.log("data points " + data_points + " data dist " + data_dist);
+//	console.log("data points " + data_points + " data dist " + data_dist);
 	for(var x = 0; x < data_dist; x++)
 	{
 		var val = pack[ppos]*256 + pack[ppos+1];
 		if(val > 32767) val = -65535 + val;
-		console.log(val);
+//		console.log(val);
 		ppos += 2;
 //		if(val > 50000) console.log(val);
-		uecg_res.RR_data.push(val);
-		if(x > 0)
+		var dv = ecg_value - val;
+		var ok_to_process = 1;
+		if(dv < 0) dv = -dv;
+		if(dv > 500)
 		{
-			var dv = uecg_res.RR_data[x] - uecg_res.RR_data[x-1];
-			if(dv < 0) dv = -dv;
-//			if(dv > 500) return -1;
+			ecg_faulty_cnt++;
+			ok_to_process = 0;
+			if(ecg_faulty_cnt > 3) ok_to_process = 1;
 		}
+		else ecg_faulty_cnt = 0;
+		if(ok_to_process > 0)
+		{
+			ecg_value *= (1.0 - lowpass_param);
+			ecg_value += lowpass_param * val;
+		}
+		uecg_res.RR_data.push(ecg_value);
 //		printf("ecg %d %d\n", x, val);
 	}
 	return uecg_res;
@@ -726,7 +741,7 @@ serial_process = function(data)
 	serial_stream = Buffer.concat([serial_stream, data]);
 	var stream_length = serial_stream.length;
 	var processed_pos = 0;
-	for(var x = 0; x < stream_length-25; x++) //25 - always less than minimum valid packet length
+	for(var x = 0; x < stream_length-75; x++) //25 - always less than minimum valid packet length
 	{
 		if(serial_stream[x] == uart_prefix[0] && serial_stream[x+1] == uart_prefix[1])
 		{//we detected possible start of the packet, trying to make sense of it
@@ -736,7 +751,7 @@ serial_process = function(data)
 			if(protocol_v6p > 0) message_length = serial_stream[ppos+1];
 			if(ppos + message_length >= stream_length)
 				break;
-			processed_pos = ppos + message_length - 1;
+			processed_pos = ppos + message_length;
 			res = parse_direct_packet_uecg(serial_stream.slice(ppos, ppos+message_length));
 			if(res === undefined)
 				;
