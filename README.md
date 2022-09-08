@@ -4,8 +4,7 @@ This app at the moment basically duplicates functionality of Android app, but wo
 
 ~~Download portable version for Windows here: https://github.com/ultimaterobotics/uecg_windows~~
 
-Uploaded binaries for Linux, Windows and MacOS, compiled for Node 12 (because of some libraries we use).
-They should work out of the box, let us know in the issues if not.
+Uploaded executables for Linux, Windows and MacOS, compiled for Node 16. They should work out of the box, let us know in the issues if not.
 
 ## Usage
 
