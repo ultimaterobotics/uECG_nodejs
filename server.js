@@ -3,12 +3,11 @@ var lowpass_param = 0.2;
 
 var express = require('express');
 var app = express();
-var path = require('path');
 //var binary = require('binary');
 var bodyParser = require('body-parser');
 
-const SerialPort = require('serialport');
-const ByteLength = require('@serialport/parser-byte-length');
+const {SerialPort} = require('serialport');
+const { ByteLengthParser } = require('@serialport/parser-byte-length')
 var port;
 var parser;
 
@@ -45,8 +44,8 @@ wait_new_port = function(port_name_list, name_part)
 				console.log('device found: ' + ports[p].path);
 				console.log(ports[p]);
 				cur_port_path = ports[p].path;
-				port = new SerialPort(cur_port_path, { baudRate: 921600 });
-				parser = port.pipe(new ByteLength({length: 16}));
+				port = new SerialPort({path: cur_port_path, baudRate: 921600 });
+				parser = port.pipe(new ByteLengthParser({length: 16}));
 				prepare_parser();
 				completed = 1;
 			}
@@ -81,8 +80,8 @@ wait_for_port = function(name_part)
 		else
 		{
 			console.log('device found: ' + cur_port_path);
-			port = new SerialPort(cur_port_path, { baudRate: 921600 });
-			parser = port.pipe(new ByteLength({length: 16}));
+			port = new SerialPort({path: cur_port_path, baudRate: 921600 });
+			parser = port.pipe(new ByteLengthParser({length: 16}));
 			prepare_parser();
 		}
 	},
